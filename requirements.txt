@@ -1,0 +1,8 @@
+pandas
+keras
+tensorflow
+scipy
+numpy
+sklearn
+smac
+mini_autonet
