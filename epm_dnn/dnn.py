@@ -83,7 +83,7 @@ class DNN(object):
                     rng=np.random.RandomState(42),
                     intensifier=intensifier)
         
-        smac.solver.runhistory.overwrite_existings = True
+        smac.solver.runhistory.overwrite_existing_runs = True
         
         incumbent = smac.optimize()
         
