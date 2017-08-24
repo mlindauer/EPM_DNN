@@ -1,3 +1,15 @@
+######################################################################
+import logging
+import sys
+import os
+import inspect
+cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))
+cmd_folder = os.path.realpath(os.path.join(cmd_folder, ".."))
+if cmd_folder not in sys.path:
+    sys.path.insert(0,cmd_folder)
+    
+######################################################################
+
 import os
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -6,6 +18,8 @@ import pandas as pd
 import numpy as np
 
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 from ConfigSpace.io import pcs
 from ConfigSpace.util import fix_types, deactivate_inactive_hyperparameters
@@ -14,13 +28,17 @@ from ConfigSpace.hyperparameters import CategoricalHyperparameter
 
 from smac.configspace.util import convert_configurations_to_array
 
+from epm_dnn.dnn import DNN
+
 def read_feature_file(fn:str):
     
     return pd.read_csv(fn, header=0, index_col=0)
 
 def read_perf_file(fn:str):
     
-    return pd.read_csv(fn, header=None, index_col=0)
+    perf_pd = pd.read_csv(fn, header=None, index_col=0)
+    perf_pd.replace(0.0, 0.0005, inplace=True)
+    return perf_pd
 
 def read_config_file(fn:str, cs:ConfigurationSpace):
     
@@ -110,7 +128,11 @@ if __name__ == "__main__":
     parser.add_argument("--force_reading", default=False,
                         action="store_true")
     
+    parser.add_argument("--verbose", choices=["INFO","DEBUG"], default="INFO")
+    
     args = parser.parse_args()
+    
+    logging.basicConfig(level=args.verbose)
     
     if args.scenario == 'SPEAR-SWV':
         performance_file = os.path.join(args.src_dir,'SAT','1000samples-SPEAR-SWV-all604inst-results.txt')
@@ -168,6 +190,7 @@ if __name__ == "__main__":
         feature_pd = read_feature_file(fn=feature_file)
         cs = read_cs(fn=pcs_file)
         perf_pd = read_perf_file(fn=performance_file)
+        print(perf_pd.min().min())
         configs = read_config_file(fn=config_file, cs=cs)
         
         X, y = build_matrix(feature_pd=feature_pd, 
@@ -185,3 +208,24 @@ if __name__ == "__main__":
                 arr=X)
         np.save(file="converted_data/%s/y.npy" %(args.scenario), 
                 arr=y)
+    
+    dnn = DNN(max_layers=10, 
+              use_dropout=False, 
+              use_l2_regularization=False)
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=12345)
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.3, random_state=12345)
+    
+    dnn.fit(X_train=X_train, 
+            y_train=y_train,
+            X_valid=X_valid, 
+            y_valid=y_valid,
+            max_epochs=10,
+            runcount_limit=10)
+    
+    y_pred = dnn.predict(X_test)
+    
+    rmse = np.sqrt(mean_squared_error(y_true=y_test, y_pred=y_pred))
+    
+    print("RMSE (test): %f" %(rmse))
+    
