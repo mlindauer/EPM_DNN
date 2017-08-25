@@ -15,6 +15,8 @@ from mini_autonet.tae.simple_tae import SimpleTAFunc
 
 from sklearn.preprocessing import StandardScaler
 
+from ConfigSpace.configuration_space import Configuration
+
 class DNN(object):
     
     def __init__(self, max_layers:int=10, 
@@ -32,7 +34,8 @@ class DNN(object):
     
     def fit(self, X_train, y_train, X_valid, y_valid,
             max_epochs:int,
-            runcount_limit:int=100):
+            runcount_limit:int=100,
+            config:Configuration=None):
         
         X_train = self.scalerX.fit_transform(X_train)
         X_valid = self.scalerX.transform(X_valid)
@@ -55,7 +58,8 @@ class DNN(object):
                 
             history = pc.train(X_train=X_train, y_train=y_train, X_valid=X_valid,
                                y_valid=y_valid, n_epochs=1)
-            final_loss = history.history["val_loss"][-1] 
+            
+            final_loss = history.history["val_loss"][-1]
             
             return final_loss, {"model": pc}
 
@@ -78,24 +82,29 @@ class DNN(object):
                  run_limit=100,
                  max_epochs=max_epochs)
         
-        smac = SMAC(scenario=ac_scenario, 
+        if isinstance(config, dict):
+            config = Configuration(configuration_space=cs, values=config)
+        elif runcount_limit==1:
+            config = cs.get_default_configuration()
+        else:
+            smac = SMAC(scenario=ac_scenario, 
                     tae_runner=taf,
                     rng=np.random.RandomState(42),
                     intensifier=intensifier)
         
-        smac.solver.runhistory.overwrite_existing_runs = True
-        
-        incumbent = smac.optimize()
+            smac.solver.runhistory.overwrite_existing_runs = True
+            config = smac.optimize()
+            
         
         print("Final Incumbent")
-        print(incumbent)
+        print(config)
         
         pc = None
         for epoch in range(max_epochs):
             if pc is None:
-                loss, model_dict = obj_func(config=incumbent)
+                loss, model_dict = obj_func(config=config)
             else:
-                loss, model_dict = obj_func(config=incumbent, pc=pc)
+                loss, model_dict = obj_func(config=config, pc=pc)
             pc = model_dict["model"]
             
         self.model = pc

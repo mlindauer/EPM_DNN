@@ -29,6 +29,7 @@ from ConfigSpace.hyperparameters import CategoricalHyperparameter
 from smac.configspace.util import convert_configurations_to_array
 
 from epm_dnn.dnn import DNN
+from epm_dnn.rf import RF
 
 def read_feature_file(fn:str):
     
@@ -127,6 +128,11 @@ if __name__ == "__main__":
                         help="subsample to x instances")
     parser.add_argument("--force_reading", default=False,
                         action="store_true")
+    parser.add_argument("--model", choices=["RF","DNN"], default="DNN")
+    parser.add_argument("--budget", type=int, default=1, help=
+                          "number of function evaluations for SMAC; if 1, using the default config")
+    parser.add_argument("--max_layers", type=int, default=10, help=
+                          "maximal number of layers (only applicable if --model DNN)")
     
     parser.add_argument("--verbose", choices=["INFO","DEBUG"], default="INFO")
     
@@ -209,23 +215,70 @@ if __name__ == "__main__":
         np.save(file="converted_data/%s/y.npy" %(args.scenario), 
                 arr=y)
     
-    dnn = DNN(max_layers=10, 
-              use_dropout=False, 
-              use_l2_regularization=False)
-    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=12345)
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.3, random_state=12345)
     
-    dnn.fit(X_train=X_train, 
-            y_train=y_train,
-            X_valid=X_valid, 
-            y_valid=y_valid,
-            max_epochs=10,
-            runcount_limit=10)
+    if args.model == "DNN":
     
-    y_pred = dnn.predict(X_test)
+        model = DNN(max_layers=args.max_layers, 
+                  use_dropout=False, 
+                  use_l2_regularization=False)
+        
+        
+        model.fit(X_train=X_train, 
+                y_train=y_train,
+                X_valid=X_valid, 
+                y_valid=y_valid,
+                max_epochs=10,
+                runcount_limit=args.budget)
+      #               {
+  #                       "activation": 'tanh',
+  #                       "batch_normalization": True,
+  #                       "batch_size": 130,
+  #                       "final_lr_fraction": 0.15540652130045385,
+  #                       "initial_lr": 0.0008090954047591079,
+  #                       "loss_function": 'mean_squared_error',
+  #                       "num_layers": 9,
+  #                       "num_units_1": 468,
+  #                       "num_units_2": 14,
+  #                       "num_units_3": 645,
+  #                       "num_units_4": 97,
+  #                       "num_units_5": 20,
+  #                       "num_units_6": 740,
+  #                       "num_units_7": 1005,
+  #                       "num_units_8": 37,
+  #                       "num_units_9": 12,
+  #                       "optimizer": 'RMSprop',
+  #                       "output_activation": 'linear'
+  #                       })
+  #=============================================================================
     
+    elif args.model == "RF":
+            
+        model = RF()
+        
+        model.fit(X_train=X_train, 
+                y_train=y_train,
+                X_valid=X_valid, 
+                y_valid=y_valid,
+                runcount_limit=args.budget)        
+  
+    y_pred = model.predict(X_train)
+    rmse = np.sqrt(mean_squared_error(y_true=y_train, y_pred=y_pred))
+    print("RMSE (train): %f" %(rmse))
+
+    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_train), y_pred=np.log10(y_pred)))
+    print("RMSLE (train): %f" %(rmse))
+
+    y_pred = model.predict(X_valid)
+    rmse = np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_pred))
+    print("RMSE (valid): %f" %(rmse))  
+    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_valid), y_pred=np.log10(y_pred)))
+    print("RMSLE (valid): %f" %(rmse))  
+    
+    y_pred = model.predict(X_test)
     rmse = np.sqrt(mean_squared_error(y_true=y_test, y_pred=y_pred))
-    
     print("RMSE (test): %f" %(rmse))
+    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_test), y_pred=np.log10(y_pred)))
+    print("RMSLE (test): %f" %(rmse))
     
