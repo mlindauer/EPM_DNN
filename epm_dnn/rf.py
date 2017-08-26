@@ -51,9 +51,9 @@ class RF(object):
                 y_pred = 10**tree.predict(X_valid)
                 y_preds.append(y_pred)
             y_preds = np.mean(y_preds, axis=0)
-            y_preds = np.sqrt(np.log10(y_preds))
+            y_preds = np.log10(y_preds)
                 
-            return mean_squared_error(y_true=y_valid, y_pred=y_preds)
+            return np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_preds))
 
         taf = SimpleTAFunc(obj_func)
         cs = self.get_config_space()
