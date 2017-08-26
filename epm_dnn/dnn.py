@@ -104,12 +104,15 @@ class DNN(object):
         print(config)
         
         pc = None
+        start_time = time.time()
         for epoch in range(max_epochs):
             if pc is None:
                 loss, model_dict = obj_func(config=config)
             else:
                 loss, model_dict = obj_func(config=config, pc=pc)
             pc = model_dict["model"]
+            
+        print("Training Time: %d" %(time.time() - start_time))
             
         self.model = pc
     
