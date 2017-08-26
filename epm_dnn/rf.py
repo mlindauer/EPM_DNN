@@ -80,7 +80,7 @@ class RF(object):
         print("Final Incumbent")
         print(config)
         
-        rf = RandomForestRegressor(n_estimators=config["n_estimators"], 
+        rf = RandomForestRegressor(n_estimators=100, 
                                   criterion=config["criterion"], 
                                   min_samples_split=config["min_samples_split"], 
                                   min_samples_leaf=config["min_samples_leaf"], 
