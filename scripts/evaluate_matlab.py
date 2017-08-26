@@ -254,7 +254,8 @@ if __name__ == "__main__":
                 y_valid=y_valid,
                 max_epochs=10,
                 wc_limit=args.wc_budget,
-                runcount_limit=args.budget)
+                runcount_limit=args.budget,
+                seed=args.seed)
       #               {
   #                       "activation": 'tanh',
   #                       "batch_normalization": True,
@@ -286,7 +287,8 @@ if __name__ == "__main__":
                 X_valid=X_valid, 
                 y_valid=y_valid,
                 wc_limit=args.wc_budget,
-                runcount_limit=args.budget)        
+                runcount_limit=args.budget,
+                seed=args.seed)        
   
     y_pred = model.predict(X_train)
     rmse = np.sqrt(mean_squared_error(y_true=y_train, y_pred=y_pred))
