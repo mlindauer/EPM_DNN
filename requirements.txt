@@ -6,3 +6,4 @@ numpy
 sklearn
 smac
 mini_autonet
+# -e git://bitbucket.org/aadfreiburg/param_net.git@reparametrization#egg=param_net

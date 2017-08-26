@@ -19,12 +19,12 @@ from ConfigSpace.configuration_space import Configuration
 
 class DNN(object):
     
-    def __init__(self, max_layers:int=10, 
+    def __init__(self, num_layers_range:list=[1,4,10], 
                  use_dropout:bool=False, 
                  use_l2_regularization:bool=False):
         self.logger = logging.getLogger("AutoNet")
         
-        self.max_layers = max_layers
+        self.num_layers_range = num_layers_range
     
         self.use_dropout = use_dropout
         self.use_l2_regularization = use_l2_regularization
@@ -35,6 +35,7 @@ class DNN(object):
     def fit(self, X_train, y_train, X_valid, y_valid,
             max_epochs:int,
             runcount_limit:int=100,
+            wc_limit:int=60,
             config:Configuration=None):
         
         X_train = self.scalerX.fit_transform(X_train)
@@ -52,27 +53,29 @@ class DNN(object):
             if pc is None:
                 K.clear_session()
                 pc = ParamFCNetRegression(config=config, n_feat=X_train.shape[1],
-                                              max_num_epochs=max_epochs,
+                                              expected_num_epochs=max_epochs,
                                               n_outputs=1,
-                                              verbose=1)
+                                              verbose=0)
                 
             history = pc.train(X_train=X_train, y_train=y_train, X_valid=X_valid,
                                y_valid=y_valid, n_epochs=1)
             
-            final_loss = history.history["val_loss"][-1]
+            final_loss = history["val_loss"][-1]
             
             return final_loss, {"model": pc}
 
         taf = SimpleTAFunc(obj_func)
-        cs = ParamFCNetRegression.get_config_space(max_num_layers=self.max_layers,
+        cs = ParamFCNetRegression.get_config_space(num_layers_range=self.num_layers_range,
                                                     use_l2_regularization=self.use_l2_regularization,
                                                     use_dropout=self.use_dropout)
         
         ac_scenario = Scenario({"run_obj": "quality",  # we optimize quality
                                 "runcount-limit": max_epochs*runcount_limit,
+                                "wallclock-limit": wc_limit,
                                 "cost_for_crash": 10, 
                                 "cs": cs,
                                 "deterministic": "true",
+                                "abort_on_first_run_crash": False,
                                 "output-dir": ""
                                 })
         

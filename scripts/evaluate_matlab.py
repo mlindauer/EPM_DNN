@@ -17,6 +17,10 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import pandas as pd
 import numpy as np
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -30,6 +34,8 @@ from smac.configspace.util import convert_configurations_to_array
 
 from epm_dnn.dnn import DNN
 from epm_dnn.rf import RF
+
+from plottingscripts.plotting.scatter import plot_scatter_plot
 
 def read_feature_file(fn:str):
     
@@ -115,6 +121,7 @@ def build_matrix(feature_pd:pd.DataFrame, perf_pd:pd.DataFrame,
     print(y.shape)
     
     return X, y
+
         
 if __name__ == "__main__":
     
@@ -131,12 +138,16 @@ if __name__ == "__main__":
     parser.add_argument("--model", choices=["RF","DNN"], default="DNN")
     parser.add_argument("--budget", type=int, default=1, help=
                           "number of function evaluations for SMAC; if 1, using the default config")
+    parser.add_argument("--wc_budget", type=int, default=60, help=
+                          "wallclock time budget for SMAC")
     parser.add_argument("--max_layers", type=int, default=10, help=
                           "maximal number of layers (only applicable if --model DNN)")
     
     parser.add_argument("--verbose", choices=["INFO","DEBUG"], default="INFO")
     
     args = parser.parse_args()
+    
+    print(args)
     
     logging.basicConfig(level=args.verbose)
     
@@ -145,50 +156,60 @@ if __name__ == "__main__":
         config_file = os.path.join(args.src_dir,'SAT','1000samples-algospear1.2.1.1-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'SAT','spear-params.txt')
         feature_file = os.path.join(args.src_dir,'SAT','SWV-feat.csv')
+        cutoff = 300
     elif args.scenario == 'SPEAR-IBM':
         performance_file = os.path.join(args.src_dir,'SAT','1000samples-SPEAR-IBM-all765inst-results.txt')
         config_file = os.path.join(args.src_dir,'SAT','1000samples-algospear1.2.1.1-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'SAT','spear-params.txt')
         feature_file = os.path.join(args.src_dir,'SAT','IBM-ALL-feat.csv')
+        cutoff = 300
     elif args.scenario == 'SPEAR-SWV-IBM':
         performance_file = os.path.join(args.src_dir,'SAT','1000samples-SPEAR-IBM-SWV-results.txt')
         config_file = os.path.join(args.src_dir,'SAT','1000samples-algospear1.2.1.1-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'SAT','spear-params.txt')
         feature_file = os.path.join(args.src_dir,'SAT','IBM-SWV-feat.csv')
+        cutoff = 300
     elif args.scenario == 'CPLEX-CRR':
-        tuning_scenario = 'CPLEX-CRR' #'CPLEX12-cat-CORLAT-REG-RCW' # memory error
         performance_file = os.path.join(args.src_dir,'MIP','1000samples-CPLEX-CORLAT-REG-RCW-results.txt')
         config_file = os.path.join(args.src_dir,'MIP','1000samples-algocplex12-milp-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'MIP','cplex12-params-CPAIOR-space.txt')
         feature_file = os.path.join(args.src_dir,'MIP','CORLAT-REG-RCW-features.csv')
+        cutoff = 300
     elif args.scenario == 'CPLEX-CR':
         performance_file = os.path.join(args.src_dir,'MIP','1000samples-CPLEX-CORLAT-REG-results.txt')
         config_file = os.path.join(args.src_dir,'MIP','1000samples-algocplex12-milp-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'MIP','cplex12-params-CPAIOR-space.txt')
         feature_file = os.path.join(args.src_dir,'MIP','CORLAT-REG-features.csv')
+        cutoff = 300
     elif args.scenario == 'CPLEX-RCW':
         performance_file = os.path.join(args.src_dir,'MIP','1000samples-CPLEX-RCW-990train-990test-results.txt')
         config_file = os.path.join(args.src_dir,'MIP','1000samples-algocplex12-milp-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'MIP','cplex12-params-CPAIOR-space.txt')
         feature_file = os.path.join(args.src_dir,'MIP','RCW-train_test-features-withfilename.csv')
+        cutoff = 300
     elif args.scenario == 'CPLEX-REG':
         performance_file = os.path.join(args.src_dir,'MIP','1000samples-CPLEX-CATS_REG-1000train-1000test-results.txt')
         config_file = os.path.join(args.src_dir,'MIP','1000samples-algocplex12-milp-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'MIP','cplex12-params-CPAIOR-space.txt')
         feature_file = os.path.join(args.src_dir,'MIP','REG-train_test-features-withfilename.csv')
+        cutoff = 300
     elif args.scenario == 'CPLEX-CORLAT':
         performance_file = os.path.join(args.src_dir,'MIP','1000samples-CPLEX-CORLAT-train_test_inst-results.txt')
         config_file = os.path.join(args.src_dir,'MIP','1000samples-algocplex12-milp-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'MIP','cplex12-params-CPAIOR-space.txt')
         feature_file = os.path.join(args.src_dir,'MIP','CORLAT-train_test-features-withfilename.csv')
+        cutoff = 300
     elif args.scenario == 'CPLEX-BIGMIX':
         performance_file = os.path.join(args.src_dir,'MIP','1000samples-CPLEX-BIGMIX-all1510inst-results.txt')
         config_file = os.path.join(args.src_dir,'MIP','1000samples-algocplex12-milp-runobjruntime-overallobjmean10-runs1000-time300.0-length2147483647_0.txt')
         pcs_file = os.path.join(args.src_dir,'MIP','cplex12-params-CPAIOR-space.txt')
         feature_file = os.path.join(args.src_dir,'MIP','BIGMIX-train_test-features-withfilename.csv')
-    
+        cutoff = 300
     
     if os.path.isfile("converted_data/%s/X.npy" %(args.scenario)) and not args.force_reading:
+        
+        logging.info("Reading data from disk")
+        
         X = np.load("converted_data/%s/X.npy" %(args.scenario))
         y = np.load("converted_data/%s/y.npy" %(args.scenario))
     
@@ -196,7 +217,6 @@ if __name__ == "__main__":
         feature_pd = read_feature_file(fn=feature_file)
         cs = read_cs(fn=pcs_file)
         perf_pd = read_perf_file(fn=performance_file)
-        print(perf_pd.min().min())
         configs = read_config_file(fn=config_file, cs=cs)
         
         X, y = build_matrix(feature_pd=feature_pd, 
@@ -220,7 +240,7 @@ if __name__ == "__main__":
     
     if args.model == "DNN":
     
-        model = DNN(max_layers=args.max_layers, 
+        model = DNN(num_layers_range=[1,4,args.max_layers], 
                   use_dropout=False, 
                   use_l2_regularization=False)
         
@@ -230,6 +250,7 @@ if __name__ == "__main__":
                 X_valid=X_valid, 
                 y_valid=y_valid,
                 max_epochs=10,
+                wc_limit=args.wc_budget,
                 runcount_limit=args.budget)
       #               {
   #                       "activation": 'tanh',
@@ -261,14 +282,19 @@ if __name__ == "__main__":
                 y_train=y_train,
                 X_valid=X_valid, 
                 y_valid=y_valid,
+                wc_limit=args.wc_budget,
                 runcount_limit=args.budget)        
   
     y_pred = model.predict(X_train)
     rmse = np.sqrt(mean_squared_error(y_true=y_train, y_pred=y_pred))
     print("RMSE (train): %f" %(rmse))
-
     rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_train), y_pred=np.log10(y_pred)))
     print("RMSLE (train): %f" %(rmse))
+    
+    fig = plot_scatter_plot(x_data=y_train, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
+    fig.tight_layout()
+    fig.savefig("%s_%s_b%d_train.png" %(args.scenario, args.model, args.budget))
+    plt.close(fig)
 
     y_pred = model.predict(X_valid)
     rmse = np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_pred))
@@ -276,9 +302,18 @@ if __name__ == "__main__":
     rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_valid), y_pred=np.log10(y_pred)))
     print("RMSLE (valid): %f" %(rmse))  
     
+    fig = plot_scatter_plot(x_data=y_valid, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
+    fig.tight_layout()
+    fig.savefig("%s_%s_b%d_valid.png" %(args.scenario, args.model, args.budget))
+    plt.close(fig)
+    
     y_pred = model.predict(X_test)
     rmse = np.sqrt(mean_squared_error(y_true=y_test, y_pred=y_pred))
     print("RMSE (test): %f" %(rmse))
     rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_test), y_pred=np.log10(y_pred)))
     print("RMSLE (test): %f" %(rmse))
     
+    fig = plot_scatter_plot(x_data=y_test, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
+    fig.tight_layout()
+    fig.savefig("%s_%s_b%d_test.png" %(args.scenario, args.model, args.budget))
+    plt.close(fig)

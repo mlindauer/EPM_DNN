@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy as np
 
@@ -26,9 +27,11 @@ class RF(object):
         
     def fit(self, X_train, y_train, X_valid, y_valid,
             runcount_limit:int=100,
+            wc_limit:int=60,
             config:Configuration=None):
         
         y_train = np.log10(y_train)
+        y_valid = np.log10(y_valid)
         
         def obj_func(config, instance=None, seed=None, pc=None):
             rf = RandomForestRegressor(n_estimators=config["n_estimators"], 
@@ -47,6 +50,7 @@ class RF(object):
                 y_pred = 10**tree.predict(X_valid)
                 y_preds.append(y_pred)
             y_preds = np.mean(y_preds, axis=0)
+            y_preds = np.sqrt(np.log10(y_preds))
                 
             return mean_squared_error(y_true=y_valid, y_pred=y_preds)
 
@@ -55,6 +59,7 @@ class RF(object):
         
         ac_scenario = Scenario({"run_obj": "quality",  # we optimize quality
                                 "runcount-limit": runcount_limit,
+                                "wallclock-limit": wc_limit,
                                 "cost_for_crash": 10, 
                                 "cs": cs,
                                 "deterministic": "true",
@@ -83,7 +88,9 @@ class RF(object):
                                   bootstrap=config["bootstrap"], 
                                   random_state=12345)
             
+        start_time = time.time()
         rf.fit(X_train, y_train)
+        print("Training Time: %d" %(time.time() - start_time))
             
         self.model = rf
     
@@ -104,7 +111,7 @@ class RF(object):
         n_estimators = Constant("n_estimators", 10)
         criterion = Constant("criterion", "mse")
         max_features = UniformFloatHyperparameter(
-            "max_features", 0.5, 5, default=1)
+            "max_features", 0.5, 1, default=1)
         max_depth = UnParametrizedHyperparameter("max_depth", "None")
         min_samples_split = UniformIntegerHyperparameter(
             "min_samples_split", 2, 20, default=2)
