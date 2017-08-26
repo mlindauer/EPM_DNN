@@ -36,7 +36,8 @@ class DNN(object):
             max_epochs:int,
             runcount_limit:int=100,
             wc_limit:int=60,
-            config:Configuration=None):
+            config:Configuration=None,
+            seed:int=12345):
         
         X_train = self.scalerX.fit_transform(X_train)
         X_valid = self.scalerX.transform(X_valid)
@@ -92,7 +93,7 @@ class DNN(object):
         else:
             smac = SMAC(scenario=ac_scenario, 
                     tae_runner=taf,
-                    rng=np.random.RandomState(42),
+                    rng=np.random.RandomState(seed),
                     intensifier=intensifier)
         
             smac.solver.runhistory.overwrite_existing_runs = True
@@ -120,6 +121,8 @@ class DNN(object):
         
         y_pred = self.scalerY.inverse_transform(y_pred)
         y_pred = 10**y_pred
+        
+        y_pred = np.maximum(0.0005,y_pred)
         
         return y_pred
         

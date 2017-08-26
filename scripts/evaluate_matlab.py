@@ -125,8 +125,6 @@ def build_matrix(feature_pd:pd.DataFrame, perf_pd:pd.DataFrame,
         
 if __name__ == "__main__":
     
-    random.seed(12345)
-    
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     
     parser.add_argument("--scenario", required=True)
@@ -142,12 +140,17 @@ if __name__ == "__main__":
                           "wallclock time budget for SMAC")
     parser.add_argument("--max_layers", type=int, default=10, help=
                           "maximal number of layers (only applicable if --model DNN)")
+    parser.add_argument("--seed", type=int, default=12345, help=
+                          "random seed")
     
     parser.add_argument("--verbose", choices=["INFO","DEBUG"], default="INFO")
     
     args = parser.parse_args()
     
     print(args)
+    
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     
     logging.basicConfig(level=args.verbose)
     
@@ -235,8 +238,8 @@ if __name__ == "__main__":
         np.save(file="converted_data/%s/y.npy" %(args.scenario), 
                 arr=y)
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=12345)
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.3, random_state=12345)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=args.seed)
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.3, random_state=args.seed)
     
     if args.model == "DNN":
     

@@ -28,7 +28,8 @@ class RF(object):
     def fit(self, X_train, y_train, X_valid, y_valid,
             runcount_limit:int=100,
             wc_limit:int=60,
-            config:Configuration=None):
+            config:Configuration=None,
+            seed:int=12345):
         
         y_train = np.log10(y_train)
         y_valid = np.log10(y_valid)
@@ -73,7 +74,7 @@ class RF(object):
         else:
             smac = SMAC(scenario=ac_scenario, 
                     tae_runner=taf,
-                    rng=np.random.RandomState(42))
+                    rng=np.random.RandomState(seed))
             config = smac.optimize()
         
         print("Final Incumbent")
@@ -101,6 +102,8 @@ class RF(object):
             y_pred = 10**tree.predict(X_test)
             y_preds.append(y_pred)
         y_preds = np.mean(y_preds, axis=0)
+        
+        y_pred = np.maximum(0.0005,y_pred)
         
         return y_pred
     
