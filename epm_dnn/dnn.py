@@ -17,6 +17,7 @@ from mini_autonet.tae.simple_tae import SimpleTAFunc
 from sklearn.preprocessing import StandardScaler
 
 from ConfigSpace.configuration_space import Configuration
+from ConfigSpace.util import fix_types
 
 class DNN(object):
     
@@ -88,6 +89,7 @@ class DNN(object):
                  max_epochs=max_epochs)
         
         if isinstance(config, dict):
+            config = fix_types(configuration=dict, configuration_space=cs)
             config = Configuration(configuration_space=cs, values=config)
         elif runcount_limit==1:
             config = cs.get_default_configuration()

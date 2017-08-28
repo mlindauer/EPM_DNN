@@ -8,7 +8,7 @@ flat_data = OrderedDict()
 scens = ["SPEAR-SWV","SPEAR-IBM","CPLEX-RCW","CPLEX-REG","CPLEX-CORLAT"]
 models = ["DNN", "RF"]
 
-EVA_BUDGETs = [1]#,3600]
+EVA_BUDGETs = [1,3600]
 WC_BUDGET = 86400 # sec
 RUNS = 3
 

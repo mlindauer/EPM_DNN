@@ -134,6 +134,8 @@ if __name__ == "__main__":
     parser.add_argument("--force_reading", default=False,
                         action="store_true")
     parser.add_argument("--model", choices=["RF","DNN"], default="DNN")
+    parser.add_argument("--start_from", default=None, nargs="*")
+    
     parser.add_argument("--budget", type=int, default=1, help=
                           "number of function evaluations for SMAC; if 1, using the default config")
     parser.add_argument("--wc_budget", type=int, default=60, help=
@@ -151,6 +153,10 @@ if __name__ == "__main__":
     
     random.seed(args.seed)
     np.random.seed(args.seed)
+    
+    if args.start_from is not None:
+        d = dict([k.split(":") for k in args.start_from])
+        
     
     logging.basicConfig(level=args.verbose)
     
@@ -237,6 +243,10 @@ if __name__ == "__main__":
                 arr=X)
         np.save(file="converted_data/%s/y.npy" %(args.scenario), 
                 arr=y)
+        
+    print(X.shape)
+    print("min(y): %f" %(np.min(y)))
+    print("max(y): %f" %(np.max(y)))
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=args.seed)
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.3, random_state=args.seed)
@@ -255,28 +265,8 @@ if __name__ == "__main__":
                 max_epochs=10,
                 wc_limit=args.wc_budget,
                 runcount_limit=args.budget,
-                seed=args.seed)
-      #               {
-  #                       "activation": 'tanh',
-  #                       "batch_normalization": True,
-  #                       "batch_size": 130,
-  #                       "final_lr_fraction": 0.15540652130045385,
-  #                       "initial_lr": 0.0008090954047591079,
-  #                       "loss_function": 'mean_squared_error',
-  #                       "num_layers": 9,
-  #                       "num_units_1": 468,
-  #                       "num_units_2": 14,
-  #                       "num_units_3": 645,
-  #                       "num_units_4": 97,
-  #                       "num_units_5": 20,
-  #                       "num_units_6": 740,
-  #                       "num_units_7": 1005,
-  #                       "num_units_8": 37,
-  #                       "num_units_9": 12,
-  #                       "optimizer": 'RMSprop',
-  #                       "output_activation": 'linear'
-  #                       })
-  #=============================================================================
+                seed=args.seed,
+                config=args.start_from)
     
     elif args.model == "RF":
             
@@ -288,7 +278,8 @@ if __name__ == "__main__":
                 y_valid=y_valid,
                 wc_limit=args.wc_budget,
                 runcount_limit=args.budget,
-                seed=args.seed)        
+                seed=args.seed,
+                config=args.start_from)        
   
     y_pred = model.predict(X_train)
     rmse = np.sqrt(mean_squared_error(y_true=y_train, y_pred=y_pred))

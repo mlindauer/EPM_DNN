@@ -19,6 +19,7 @@ from ConfigSpace.configuration_space import Configuration, ConfigurationSpace
 from ConfigSpace.hyperparameters import UniformFloatHyperparameter, \
     UniformIntegerHyperparameter, CategoricalHyperparameter, \
     UnParametrizedHyperparameter, Constant
+from ConfigSpace.util import fix_types
 
 class RF(object):
     
@@ -68,6 +69,7 @@ class RF(object):
                                 })
         
         if isinstance(config, dict):
+            config = fix_types(configuration=dict, configuration_space=cs)
             config = Configuration(configuration_space=cs, values=config)
         elif runcount_limit==1:
             config = cs.get_default_configuration()
