@@ -46,23 +46,25 @@ for scen in scens:
                         elif line.startswith("RMSLE (test)"):
                             rmsle_test.append(float(line.split(":")[1]))        
                     
-            data[scen][model][EVA_BUDGET]["time"] = np.median(t)
-            data[scen][model][EVA_BUDGET]["RMSE (train)"] = np.median(rmse_train)
-            data[scen][model][EVA_BUDGET]["RMSEL (train)"] = np.median(rmsle_train)
-            data[scen][model][EVA_BUDGET]["RMSE (valid)"] = np.median(rmse_valid)
-            data[scen][model][EVA_BUDGET]["RMSEL (valid)"] = np.median(rmsle_valid)
-            data[scen][model][EVA_BUDGET]["RMSE (test)"] = np.median(rmse_test)
-            data[scen][model][EVA_BUDGET]["RMSEL (test)"] = np.median(rmsle_test)
+            median_run = np.argsort(rmsle_valid)[len(rmsle_valid)//2]
+                    
+            data[scen][model][EVA_BUDGET]["time"] = t[median_run]
+            data[scen][model][EVA_BUDGET]["RMSE (train)"] = rmse_train[median_run]
+            data[scen][model][EVA_BUDGET]["RMSEL (train)"] = rmsle_train[median_run]
+            data[scen][model][EVA_BUDGET]["RMSE (valid)"] = rmse_valid[median_run]
+            data[scen][model][EVA_BUDGET]["RMSEL (valid)"] = rmsle_valid[median_run]
+            data[scen][model][EVA_BUDGET]["RMSE (test)"] = rmse_test[median_run]
+            data[scen][model][EVA_BUDGET]["RMSEL (test)"] = rmsle_test[median_run]
            
-            key = "{0}_{1}_{2}".format(scen, model, EVA_BUDGET)
+            key = "{0}_{1}_{2}_{3}".format(scen, model, EVA_BUDGET, median_run)
             flat_data[key] = flat_data.get(key,OrderedDict())
-            flat_data[key]["time [sec]"] = np.median(t)
-            flat_data[key]["RMSE (train)"] = np.median(rmse_train)
-            flat_data[key]["RMSEL (train)"] = np.median(rmsle_train)
-            flat_data[key]["RMSE (valid)"] = np.median(rmse_valid)
-            flat_data[key]["RMSEL (valid)"] = np.median(rmsle_valid)
-            flat_data[key]["RMSE (test)"] = np.median(rmse_test)
-            flat_data[key]["RMSEL (test)"] = np.median(rmsle_test)
+            flat_data[key]["time [sec]"] = t[median_run]
+            flat_data[key]["RMSE (train)"] = rmse_train[median_run]
+            flat_data[key]["RMSEL (train)"] = rmsle_train[median_run]
+            flat_data[key]["RMSE (valid)"] = rmse_valid[median_run]
+            flat_data[key]["RMSEL (valid)"] = rmsle_valid[median_run]
+            flat_data[key]["RMSE (test)"] = rmse_test[median_run]
+            flat_data[key]["RMSEL (test)"] = rmsle_test[median_run]
              
             
 df = pd.DataFrame.from_dict(data=flat_data)
@@ -70,5 +72,6 @@ df = pd.DataFrame.from_dict(data=flat_data)
 with pd.option_context('display.max_rows', None, 'display.max_columns', None):
     print(df)
 
+df.to_csv("detail_results.csv")
 
             
