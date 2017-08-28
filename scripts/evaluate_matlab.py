@@ -289,7 +289,7 @@ if __name__ == "__main__":
     
     fig = plot_scatter_plot(x_data=y_train, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
     fig.tight_layout()
-    fig.savefig("%s_%s_b%d_train.png" %(args.scenario, args.model, args.budget))
+    fig.savefig("%s_%s_b%d_s%d_train.png" %(args.scenario, args.model, args.budget, args.seed))
     plt.close(fig)
 
     y_pred = model.predict(X_valid)
@@ -300,7 +300,7 @@ if __name__ == "__main__":
     
     fig = plot_scatter_plot(x_data=y_valid, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
     fig.tight_layout()
-    fig.savefig("%s_%s_b%d_valid.png" %(args.scenario, args.model, args.budget))
+    fig.savefig("%s_%s_b%d_s%dvalid.png" %(args.scenario, args.model, args.budget, args.seed))
     plt.close(fig)
     
     y_pred = model.predict(X_test)
@@ -311,5 +311,5 @@ if __name__ == "__main__":
     
     fig = plot_scatter_plot(x_data=y_test, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
     fig.tight_layout()
-    fig.savefig("%s_%s_b%d_test.png" %(args.scenario, args.model, args.budget))
+    fig.savefig("%s_%s_b%d_s%d_test.png" %(args.scenario, args.model, args.budget, args.seed))
     plt.close(fig)
