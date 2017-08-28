@@ -26,36 +26,48 @@ class RF(object):
     def __init__(self):
         self.logger = logging.getLogger("RF")
         
-    def fit(self, X_train, y_train, X_valid, y_valid,
+    def fit(self, X, y,
             runcount_limit:int=100,
             wc_limit:int=60,
             config:Configuration=None,
             seed:int=12345):
         
-        y_train = np.log10(y_train)
-        y_valid = np.log10(y_valid)
-        
         def obj_func(config, instance=None, seed=None, pc=None):
-            rf = RandomForestRegressor(n_estimators=config["n_estimators"], 
-                                  criterion=config["criterion"], 
-                                  min_samples_split=config["min_samples_split"], 
-                                  min_samples_leaf=config["min_samples_leaf"], 
-                                  min_weight_fraction_leaf=config["min_weight_fraction_leaf"], 
-                                  max_features=config["max_features"],
-                                  bootstrap=config["bootstrap"], 
-                                  random_state=12345)
             
-            rf.fit(X_train, y_train)
+            losses = []
             
-            y_preds = []
-            for tree in rf.estimators_:
-                y_pred = 10**tree.predict(X_valid)
-                y_preds.append(y_pred)
-            y_preds = np.mean(y_preds, axis=0)
-            y_preds = np.log10(y_preds)
-                
-            return np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_preds))
+            for model_idx, [train_idx, valid_idx] in enumerate([[0,3],[3,0],[1,2],[2,1]]):
 
+                X_train = X[train_idx]
+                X_valid = X[valid_idx]
+                y_train = y[train_idx]
+                y_valid = y[valid_idx]
+                
+                y_train = np.log10(y_train)
+                y_valid = np.log10(y_valid)
+                
+                rf = RandomForestRegressor(n_estimators=config["n_estimators"], 
+                                      criterion=config["criterion"], 
+                                      min_samples_split=config["min_samples_split"], 
+                                      min_samples_leaf=config["min_samples_leaf"], 
+                                      min_weight_fraction_leaf=config["min_weight_fraction_leaf"], 
+                                      max_features=config["max_features"],
+                                      bootstrap=config["bootstrap"], 
+                                      random_state=12345)
+                
+                rf.fit(X_train, y_train)
+                
+                y_preds = []
+                for tree in rf.estimators_:
+                    y_pred = 10**tree.predict(X_valid)
+                    y_preds.append(y_pred)
+                y_preds = np.mean(y_preds, axis=0)
+                y_preds = np.log10(y_preds)
+                loss = np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_preds))
+                
+            return np.mean(losses)
+        
+        
         taf = SimpleTAFunc(obj_func)
         cs = self.get_config_space()
         
@@ -82,6 +94,18 @@ class RF(object):
         print("Final Incumbent")
         print(config)
         
+        X_all = None
+        y_all = None
+        for idx, (X_q, y_q) in enumerate(zip(X,y)):
+            if idx == 0:
+                X_all = X_q
+                y_all = y_q
+            else:
+                X_all = np.vstack([X_all, X_q])
+                y_all = np.hstack([y_all, y_q])
+        
+        y_all = np.log10(y_all)
+        
         rf = RandomForestRegressor(n_estimators=100, 
                                   criterion=config["criterion"], 
                                   min_samples_split=config["min_samples_split"], 
@@ -92,7 +116,7 @@ class RF(object):
                                   random_state=12345)
             
         start_time = time.time()
-        rf.fit(X_train, y_train)
+        rf.fit(X_all, y_all)
         print("Training Time: %d" %(time.time() - start_time))
             
         self.model = rf

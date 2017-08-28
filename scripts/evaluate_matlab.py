@@ -101,27 +101,68 @@ def build_matrix(feature_pd:pd.DataFrame, perf_pd:pd.DataFrame,
     ohe = OneHotEncoder(n_values=n_values, categorical_features=mask_array, sparse=False)
     config_matrix = ohe.fit_transform(config_matrix)
     
+    train_config_indices = random.sample(range(len(configs)), int(len(configs)/2))
+    valid_config_indices = random.sample(train_config_indices, int(len(train_config_indices)/2))
+    
+    train_inst_indices = random.sample(range(len(insts)), int(len(insts)/2))
+    valid_inst_indices = random.sample(train_inst_indices, int(len(train_inst_indices)/2))
+    
     # convert in X matrix and y vector
-    X = []
-    y = []
-    for inst in insts:
+    X_I, X_II, X_III, X_IV = [[],[],[],[]], [], [], []
+    y_I, y_II, y_III, y_IV = [[],[],[],[]], [], [], []
+    for i_idx, inst in enumerate(insts):
         feat_vector = feature_pd.loc[inst].values
         perf_vector = perf_pd.loc[inst].values
         for c_idx in range(len(configs)):
             config_vec = config_matrix[c_idx,:]
             perf = perf_vector[c_idx]
             
-            X.append(np.concatenate((config_vec, feat_vector)))
-            y.append(perf)
+            if i_idx in train_inst_indices and c_idx in train_config_indices:
+                if i_idx in valid_inst_indices and c_idx in valid_config_indices:
+                    X_I[3].append(np.concatenate((config_vec, feat_vector)))
+                    y_I[3].append(perf)
+                elif i_idx not in valid_inst_indices and c_idx in valid_config_indices:
+                    X_I[2].append(np.concatenate((config_vec, feat_vector)))
+                    y_I[2].append(perf)
+                elif i_idx in valid_inst_indices and c_idx not in valid_config_indices:
+                    X_I[1].append(np.concatenate((config_vec, feat_vector)))
+                    y_I[1].append(perf)
+                else:
+                    X_I[0].append(np.concatenate((config_vec, feat_vector)))
+                    y_I[0].append(perf)
+            elif i_idx not in train_inst_indices and c_idx in train_config_indices:
+                X_II.append(np.concatenate((config_vec, feat_vector)))
+                y_II.append(perf)
+            elif i_idx in train_inst_indices and c_idx not in train_config_indices:
+                X_III.append(np.concatenate((config_vec, feat_vector)))
+                y_III.append(perf)
+            else:
+                X_IV.append(np.concatenate((config_vec, feat_vector)))
+                y_IV.append(perf)
     
-    X = np.array(X)
-    y = np.array(y)
+    X_II, X_III, X_IV = np.array(X_II), np.array(X_III), np.array(X_IV)
+    y_II, y_III, y_IV = np.array(y_II), np.array(y_III), np.array(y_IV)
+    X_I = np.array([np.array(X_I[0]),np.array(X_I[1]),np.array(X_I[2]),np.array(X_I[3])]) 
+    y_I = np.array([np.array(y_I[0]),np.array(y_I[1]),np.array(y_I[2]),np.array(y_I[3])]) 
     
-    print(X.shape)
-    print(y.shape)
+    print(X_I.shape, X_II.shape, X_III.shape, X_IV.shape)
+    print(y_I.shape, y_II.shape, y_III.shape, y_IV.shape)
     
-    return X, y
+    return X_I, X_II, X_III, X_IV, y_I, y_II, y_III, y_IV
 
+
+def validate(X, y_true, quadrant:str):
+    
+    y_pred = model.predict(X)
+    rmse = np.sqrt(mean_squared_error(y_true=y_true, y_pred=y_pred))
+    print("RMSE (%s): %f" %(quadrant, rmse))
+    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_true), y_pred=np.log10(y_pred)))
+    print("RMSLE (%s): %f" %(quadrant, rmse))
+    
+    fig = plot_scatter_plot(x_data=y_true, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
+    fig.tight_layout()
+    fig.savefig("%s_%s_b%d_s%d_%s.png" %(args.scenario, args.model, args.budget, args.seed, quadrant))
+    plt.close(fig)
         
 if __name__ == "__main__":
     
@@ -131,7 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("--src_dir", required=True)
     parser.add_argument("--n_insts", type=int, default=None, 
                         help="subsample to x instances")
-    parser.add_argument("--force_reading", default=False,
+    parser.add_argument("--force_reading", default=True,
                         action="store_true")
     parser.add_argument("--model", choices=["RF","DNN"], default="DNN")
     parser.add_argument("--start_from", default=None, nargs="*")
@@ -219,8 +260,8 @@ if __name__ == "__main__":
         
         logging.info("Reading data from disk")
         
-        X = np.load("converted_data/%s/X.npy" %(args.scenario))
-        y = np.load("converted_data/%s/y.npy" %(args.scenario))
+        X_I, X_II, X_III, X_IV = np.load("converted_data/%s/X.npy" %(args.scenario))
+        y_I, y_II, y_III, y_IV = np.load("converted_data/%s/y.npy" %(args.scenario))
     
     else:
         feature_pd = read_feature_file(fn=feature_file)
@@ -228,28 +269,25 @@ if __name__ == "__main__":
         perf_pd = read_perf_file(fn=performance_file)
         configs = read_config_file(fn=config_file, cs=cs)
         
-        X, y = build_matrix(feature_pd=feature_pd, 
-                             perf_pd=perf_pd, 
-                             configs=configs, 
-                             cs=cs, 
-                             n_insts=args.n_insts)
+        X_I, X_II, X_III, X_IV, y_I, y_II, y_III, y_IV = build_matrix(feature_pd=feature_pd, 
+                                                             perf_pd=perf_pd, 
+                                                             configs=configs, 
+                                                             cs=cs, 
+                                                             n_insts=args.n_insts)
         
         try:
             os.makedirs("converted_data/%s/"%(args.scenario))
         except OSError:
             pass
         
-        np.save(file="converted_data/%s/X.npy" %(args.scenario), 
-                arr=X)
-        np.save(file="converted_data/%s/y.npy" %(args.scenario), 
-                arr=y)
+        #np.save(file="converted_data/%s/X.npy" %(args.scenario), 
+        #        arr=np.array([X_I, X_II, X_III, X_IV]))
+        #np.save(file="converted_data/%s/y.npy" %(args.scenario), 
+        #        arr=np.array([y_I, y_II, y_III, y_IV]))
         
-    print(X.shape)
-    print("min(y): %f" %(np.min(y)))
-    print("max(y): %f" %(np.max(y)))
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=args.seed)
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.3, random_state=args.seed)
+    print(X_I.shape)
+    print("min(y_I): %f" %(np.min(y_I)))
+    print("max(y_I): %f" %(np.max(y_I)))
     
     if args.model == "DNN":
     
@@ -257,11 +295,8 @@ if __name__ == "__main__":
                   use_dropout=False, 
                   use_l2_regularization=False)
         
-        
-        model.fit(X_train=X_train, 
-                y_train=y_train,
-                X_valid=X_valid, 
-                y_valid=y_valid,
+        model.fit(X=X_I, 
+                y=y_I,
                 max_epochs=10,
                 wc_limit=args.wc_budget,
                 runcount_limit=args.budget,
@@ -272,44 +307,30 @@ if __name__ == "__main__":
             
         model = RF()
         
-        model.fit(X_train=X_train, 
-                y_train=y_train,
-                X_valid=X_valid, 
-                y_valid=y_valid,
+        model.fit(X=X_I, 
+                y=y_I,
                 wc_limit=args.wc_budget,
                 runcount_limit=args.budget,
                 seed=args.seed,
-                config=args.start_from)        
-  
-    y_pred = model.predict(X_train)
-    rmse = np.sqrt(mean_squared_error(y_true=y_train, y_pred=y_pred))
-    print("RMSE (train): %f" %(rmse))
-    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_train), y_pred=np.log10(y_pred)))
-    print("RMSLE (train): %f" %(rmse))
-    
-    fig = plot_scatter_plot(x_data=y_train, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
-    fig.tight_layout()
-    fig.savefig("%s_%s_b%d_s%d_train.png" %(args.scenario, args.model, args.budget, args.seed))
-    plt.close(fig)
+                config=args.start_from)
+        
+    X_all = None
+    y_all = None
+    for idx, (X_q, y_q) in enumerate(zip(X_I,y_I)):
+        if idx == 0:
+            X_all = X_q
+            y_all = y_q
+        else:
+            X_all = np.vstack([X_all, X_q])
+            y_all = np.hstack([y_all, y_q])    
+    X_I = X_all
+    y_I = y_all
 
-    y_pred = model.predict(X_valid)
-    rmse = np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_pred))
-    print("RMSE (valid): %f" %(rmse))  
-    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_valid), y_pred=np.log10(y_pred)))
-    print("RMSLE (valid): %f" %(rmse))  
+
+    validate(X_I, y_I, quadrant="I")
+    validate(X_II, y_II, quadrant="II")
+    validate(X_III, y_III, quadrant="III")
+    validate(X_IV, y_IV, quadrant="IV")
     
-    fig = plot_scatter_plot(x_data=y_valid, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
-    fig.tight_layout()
-    fig.savefig("%s_%s_b%d_s%dvalid.png" %(args.scenario, args.model, args.budget, args.seed))
-    plt.close(fig)
-    
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_true=y_test, y_pred=y_pred))
-    print("RMSE (test): %f" %(rmse))
-    rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_test), y_pred=np.log10(y_pred)))
-    print("RMSLE (test): %f" %(rmse))
-    
-    fig = plot_scatter_plot(x_data=y_test, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
-    fig.tight_layout()
-    fig.savefig("%s_%s_b%d_s%d_test.png" %(args.scenario, args.model, args.budget, args.seed))
-    plt.close(fig)
+
+

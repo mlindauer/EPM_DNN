@@ -34,43 +34,63 @@ class DNN(object):
         self.scalerX = StandardScaler()
         self.scalerY = StandardScaler()
     
-    def fit(self, X_train, y_train, X_valid, y_valid,
+    def fit(self, X, y,
             max_epochs:int,
             runcount_limit:int=100,
             wc_limit:int=60,
             config:Configuration=None,
             seed:int=12345):
         
-        X_train = self.scalerX.fit_transform(X_train)
-        X_valid = self.scalerX.transform(X_valid)
-        
-        y_train = np.log10(y_train)
-        y_valid = np.log10(y_valid)
-        y_train = self.scalerY.fit_transform(y_train)
-        y_valid = self.scalerY.transform(y_valid)
-        
         
         def obj_func(config, instance=None, seed=None, pc=None):
             # continuing training if pc is given
             # otherwise, construct new DNN
-            if pc is None:
-                K.clear_session()
-                pc = ParamFCNetRegression(config=config, n_feat=X_train.shape[1],
-                                              expected_num_epochs=max_epochs,
-                                              n_outputs=1,
-                                              verbose=0)
+            
+            models = []
+            losses = []
+            
+            for model_idx, [train_idx, valid_idx] in enumerate([[0,3],[3,0],[1,2],[2,1]]):
+
+                X_train = X[train_idx]
+                X_valid = X[valid_idx]
+                y_train = y[train_idx]
+                y_valid = y[valid_idx]
                 
-            history = pc.train(X_train=X_train, y_train=y_train, X_valid=X_valid,
-                               y_valid=y_valid, n_epochs=1)
-            
-            final_loss = history["val_loss"][-1]
-            
-            return final_loss, {"model": pc}
+                X_train = self.scalerX.fit_transform(X_train)
+                X_valid = self.scalerX.transform(X_valid)
+                
+                y_train = np.log10(y_train)
+                y_valid = np.log10(y_valid)
+                y_train = self.scalerY.fit_transform(y_train.reshape(-1, 1))[:,0]
+                y_valid = self.scalerY.transform(y_valid.reshape(-1, 1))[:,0]
+                
+                if pc is None:
+                    
+                    if model_idx == 0:
+                        K.clear_session()
+                    model = ParamFCNetRegression(config=config, n_feat=X_train.shape[1],
+                                                 expected_num_epochs=max_epochs,
+                                                 n_outputs=1,
+                                                 verbose=1)
+                else:
+                    model = pc[model_idx]
+                    
+                history = model.train(X_train=X_train, y_train=y_train, X_valid=X_valid,
+                                      y_valid=y_valid, n_epochs=1)
+                
+                models.append(model)
+                
+                final_loss = history["val_loss"][-1]
+                losses.append(final_loss)
+                
+            return np.mean(losses), {"model": models}
 
         taf = SimpleTAFunc(obj_func)
         cs = ParamFCNetRegression.get_config_space(num_layers_range=self.num_layers_range,
                                                     use_l2_regularization=self.use_l2_regularization,
                                                     use_dropout=self.use_dropout)
+        
+        print(cs)
         
         ac_scenario = Scenario({"run_obj": "quality",  # we optimize quality
                                 "runcount-limit": max_epochs*runcount_limit,
@@ -106,18 +126,36 @@ class DNN(object):
         print("Final Incumbent")
         print(config)
         
-        pc = None
-        start_time = time.time()
-        for epoch in range(max_epochs):
-            if pc is None:
-                loss, model_dict = obj_func(config=config)
+        
+        X_all = None
+        y_all = None
+        for idx, (X_q, y_q) in enumerate(zip(X,y)):
+            if idx == 0:
+                X_all = X_q
+                y_all = y_q
             else:
-                loss, model_dict = obj_func(config=config, pc=pc)
-            pc = model_dict["model"]
+                X_all = np.vstack([X_all, X_q])
+                y_all = np.hstack([y_all, y_q])
+        
+        X_all = self.scalerX.fit_transform(X_all)
+        
+        y_all = np.log10(y_all)
+        y_all = self.scalerY.fit_transform(y_all.reshape(-1, 1))[:,0]
+        
+        start_time = time.time()
+        
+        model = ParamFCNetRegression(config=config, n_feat=X_all.shape[1],
+                                         expected_num_epochs=max_epochs,
+                                         n_outputs=1,
+                                         verbose=1)
+                  
+        history = model.train(X_train=X_all, y_train=y_all, 
+                              X_valid=X_all, y_valid=y_all, 
+                              n_epochs=max_epochs)
             
-        print("Training Time: %d" %(time.time() - start_time))
+        print("Training Time: %f" %(time.time() - start_time))
             
-        self.model = pc
+        self.model = model
     
     def predict(self, X_test):
 
