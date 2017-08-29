@@ -64,6 +64,7 @@ class RF(object):
                 y_preds = np.mean(y_preds, axis=0)
                 y_preds = np.log10(y_preds)
                 loss = np.sqrt(mean_squared_error(y_true=y_valid, y_pred=y_preds))
+                losses.append(loss)
                 
             return np.mean(losses)
         
