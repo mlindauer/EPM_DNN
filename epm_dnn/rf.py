@@ -32,6 +32,16 @@ class RF(object):
             config:Configuration=None,
             seed:int=12345):
         
+        X_all = None
+        y_all = None
+        for idx, (X_q, y_q) in enumerate(zip(X,y)):
+            if idx == 0:
+                X_all = X_q
+                y_all = y_q
+            else:
+                X_all = np.vstack([X_all, X_q])
+                y_all = np.hstack([y_all, y_q])
+        
         def obj_func(config, instance=None, seed=None, pc=None):
             
             losses = []
@@ -39,11 +49,10 @@ class RF(object):
             for model_idx, [train_idx, valid_idx] in enumerate([[0,3],[3,0],[1,2],[2,1]]):
 
                 X_train = X[train_idx]
-                X_valid = X[valid_idx]
                 y_train = y[train_idx]
-                y_valid = y[valid_idx]
-                
                 y_train = np.log10(y_train)
+                
+                X_valid, y_valid = X_all, y_all
                 y_valid = np.log10(y_valid)
                 
                 rf = RandomForestRegressor(n_estimators=config["n_estimators"], 
@@ -78,6 +87,7 @@ class RF(object):
                                 "cost_for_crash": 10, 
                                 "cs": cs,
                                 "deterministic": "true",
+                                "abort_on_first_run_crash": False,
                                 "output-dir": ""
                                 })
         
@@ -94,16 +104,6 @@ class RF(object):
         
         print("Final Incumbent")
         print(config)
-        
-        X_all = None
-        y_all = None
-        for idx, (X_q, y_q) in enumerate(zip(X,y)):
-            if idx == 0:
-                X_all = X_q
-                y_all = y_q
-            else:
-                X_all = np.vstack([X_all, X_q])
-                y_all = np.hstack([y_all, y_q])
         
         y_all = np.log10(y_all)
         
