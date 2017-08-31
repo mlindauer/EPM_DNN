@@ -301,8 +301,8 @@ if __name__ == "__main__":
     print(X_I.shape)
     print("min(y_I): %f" %(np.min(y_I)))
     print("max(y_I): %f" %(np.max(y_I)))
-    timeouts = np.sum([y_II>=cutoff, y_III>=cutoff, y_IV>=cutoff]) + \
-                np.sum([y_I[0]>=cutoff,y_I[1]>=cutoff,y_I[2]>=cutoff,y_I[3]>=cutoff])
+    timeouts = np.sum(y_II>=cutoff) + np.sum(y_III>=cutoff) + np.sum(y_IV>=cutoff) + \
+                np.sum(y_I[0]>=cutoff) + np.sum(y_I[1]>=cutoff) + np.sum(y_I[2]>=cutoff) + np.sum(y_I[3]>=cutoff)
     print("#timeouts: %d" %(timeouts))
     
     if args.model == "DNN":
