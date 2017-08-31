@@ -39,7 +39,14 @@ from plottingscripts.plotting.scatter import plot_scatter_plot
 
 def read_feature_file(fn:str):
     
-    return pd.read_csv(fn, header=0, index_col=0)
+    df = pd.read_csv(fn, header=0, index_col=0)
+    # rm constant features
+    df = df.loc[:, (df != df.ix[0]).any()]
+    
+    # replace missing values by median
+    df[df == -512] = np.nan
+    df = df.fillna(df.median())
+    return df
 
 def read_perf_file(fn:str):
     
@@ -159,10 +166,14 @@ def validate(X, y_true, quadrant:str):
     rmse = np.sqrt(mean_squared_error(y_true=np.log10(y_true), y_pred=np.log10(y_pred)))
     print("RMSLE (%s): %f" %(quadrant, rmse))
     
+    out_fn = "%s_%s_b%d_r%s_s%d_%s" %(args.scenario, args.model, args.budget, args.regularize, args.seed, quadrant)
+    
     fig = plot_scatter_plot(x_data=y_true, y_data=y_pred, labels=["y(true)", "y(pred)"], max_val=cutoff)
     fig.tight_layout()
-    fig.savefig("%s_%s_b%d_s%d_%s.png" %(args.scenario, args.model, args.budget, args.seed, quadrant))
+    fig.savefig("scatter_%s.png" %(out_fn))
     plt.close(fig)
+    
+    np.savetxt(fname="y_pred_%s.csv" %(out_fn), X=y_pred)
         
 if __name__ == "__main__":
     
@@ -175,6 +186,8 @@ if __name__ == "__main__":
     parser.add_argument("--force_reading", default=True,
                         action="store_true")
     parser.add_argument("--model", choices=["RF","DNN"], default="DNN")
+    parser.add_argument("--regularize", default=False, action="store_true",
+                        help="Enables regularization (L2 and dropout) for DNNs")
     parser.add_argument("--start_from", default=None, nargs="*")
     
     parser.add_argument("--budget", type=int, default=1, help=
@@ -295,8 +308,8 @@ if __name__ == "__main__":
     if args.model == "DNN":
     
         model = DNN(num_layers_range=[1,4,args.max_layers], 
-                  use_dropout=False, 
-                  use_l2_regularization=False)
+                  use_dropout=args.regularize, 
+                  use_l2_regularization=args.regularize)
         
         model.fit(X=X_I, 
                 y=y_I,
